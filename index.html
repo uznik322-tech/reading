@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f4f1ea"><meta name="description" content="Личная библиотека и спокойное чтение FB2">
+  <title>Между строк — личная библиотека</title>
+  <link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <div id="library-view">
+    <header class="header"><a class="brand" href="/">м<span class="brand-line">/</span>с <span class="brand-name">между строк</span></a><div class="header-actions"><span id="connection" class="status">На устройстве</span><button id="account-button" class="quiet">Синхронизация ↗</button></div></header>
+    <main class="library-main">
+      <div class="eyebrow">ЛИЧНОЕ ПРОСТРАНСТВО ДЛЯ ЧТЕНИЯ</div>
+      <div class="title-row"><div><h1>Твоя библиотека<span class="accent">.</span></h1><p class="subtitle">Хорошая книга. Тихий вечер. Ничего лишнего.</p></div><button id="import-button" class="primary">＋ Добавить книгу</button></div>
+      <input type="file" id="file-input" accept=".fb2" hidden>
+      <section id="continue-section" hidden><div class="section-label">ПРОДОЛЖИТЬ ЧТЕНИЕ</div><button id="continue-card" class="continue-card"></button></section>
+      <div class="shelf-heading"><h2>Все книги <span id="book-count">0</span></h2><label class="search"><span>⌕</span><input id="search" type="search" placeholder="Найти книгу или автора" aria-label="Найти книгу или автора"></label></div>
+      <div id="books" class="books"></div>
+      <section id="empty" class="empty"><div class="empty-symbol">▤</div><h2>Здесь начнётся новая история</h2><p>Добавь первую книгу в формате FB2.<br>Мы запомним место, на котором ты остановишься.</p><button id="empty-import" class="text-button">Выбрать книгу ↗</button><br><button id="sample-button" class="quiet fine">Попробовать на тестовой книге</button></section>
+      <p id="no-results" class="empty" hidden>Таких книг пока нет.</p>
+      <footer class="footer"><span>Меньше шума. Больше историй.</span><span>FB2 · Чтение в своём ритме</span></footer>
+    </main>
+  </div>
+  <div id="reader-view" hidden>
+    <header class="reader-header"><button id="back-button" class="quiet">← Библиотека</button><span id="reader-title"></span><div><button id="contents-button" class="quiet" aria-label="Оглавление">☰</button><button id="settings-button" class="quiet" aria-label="Настройки чтения">Aa</button></div></header>
+    <main id="reader-content" class="reader-content"></main>
+    <footer class="reader-footer"><span id="reader-percent">0%</span><input id="seek" type="range" min="0" max="100" value="0" aria-label="Перейти к проценту книги"><span id="save-status">Место сохранено</span></footer>
+  </div>
+  <dialog id="account-dialog"><form id="login-form"><div class="dialog-top"><h2>Твоя библиотека везде</h2><button type="button" class="close" data-close aria-label="Закрыть">×</button></div><p>Введи пароль своего сервера на телефоне и компьютере, чтобы синхронизировать книги и место чтения.</p><label>Пароль<input id="password" type="password" autocomplete="current-password" required></label><p id="account-message" role="status"></p><button class="primary" type="submit">Подключить</button><button id="logout-button" type="button" class="quiet">Выйти</button><p class="fine">Локальные книги остаются на этом устройстве после выхода. Используй только на личных устройствах.</p></form></dialog>
+  <dialog id="settings-dialog"><div class="dialog-top"><h2>Как тебе удобно</h2><button class="close" data-close aria-label="Закрыть">×</button></div><label>Размер текста <output id="font-output">20</output><input id="font-size" type="range" min="16" max="32" value="20"></label><label>Межстрочный интервал<select id="line-height"><option value="1.6">Компактный</option><option value="1.85">Обычный</option><option value="2.1">Свободный</option></select></label><label>Оформление<select id="theme"><option value="paper">Бумага</option><option value="light">Светлое</option><option value="dark">Тёмное</option></select></label></dialog>
+  <dialog id="contents-dialog"><div class="dialog-top"><h2>Оглавление</h2><button class="close" data-close aria-label="Закрыть">×</button></div><nav id="contents"></nav></dialog>
+  <dialog id="conflict-dialog"><h2>Нашлось другое место чтения</h2><p id="conflict-description"></p><p>Выбери, откуда продолжить. Позиции на устройствах могут различаться после чтения без интернета.</p><button id="use-remote" class="primary">Продолжить с другого устройства</button><button id="use-local" class="quiet">Оставить место на этом устройстве</button></dialog>
+  <div id="toast" role="status" hidden></div>
+</body></html>
