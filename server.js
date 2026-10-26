@@ -10,7 +10,7 @@ const host = process.env.HOST || '127.0.0.1';
 const port = Number(process.env.PORT || 3188);
 const config = { token: process.env.TELEGRAM_BOT_TOKEN, chat_id: process.env.TELEGRAM_CHAT_ID };
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.png': 'image/png', '.fb2': 'application/xml; charset=utf-8' };
-const assets = new Set(['index.html', 'app.js', 'style.css', 'manifest.webmanifest', 'sw.js', 'icon.svg', 'icon-192.png', 'icon-512.png', 'sample.fb2']);
+const assets = new Set(['index.html', 'app.js', 'platform.js', 'telegram.js', 'style.css', 'manifest.webmanifest', 'sw.js', 'icon.svg', 'icon-192.png', 'icon-512.png', 'sample.fb2']);
 let next_send = 0;
 
 function reply(res, status, value) {

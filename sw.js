@@ -1,5 +1,5 @@
-const cache_name = 'reading-v6';
-const assets = ['/', '/index.html', '/style.css', '/app.js', '/icon.svg', '/icon-192.png', '/icon-512.png', '/manifest.webmanifest', '/sample.fb2'];
+const cache_name = 'reading-v7';
+const assets = ['/', '/index.html', '/style.css', '/app.js', '/platform.js', '/telegram.js', '/icon.svg', '/icon-192.png', '/icon-512.png', '/manifest.webmanifest', '/sample.fb2'];
 self.addEventListener('install', event => event.waitUntil(caches.open(cache_name).then(cache => cache.addAll(assets)).then(() => self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
 self.addEventListener('fetch', event => {

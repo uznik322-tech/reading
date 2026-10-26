@@ -1,2 +1,15 @@
 data/
 .env
+node_modules/
+.tools/
+www/
+artifacts/
+android/.gradle/
+android/.gradle-cache/
+android/local.properties
+android/**/build/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+*.keystore
+*.jks

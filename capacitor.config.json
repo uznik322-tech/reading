@@ -1,0 +1,8 @@
+{
+  "appId": "tech.uznik322.reading",
+  "appName": "Между строк",
+  "webDir": "www",
+  "server": { "androidScheme": "https" },
+  "android": { "allowMixedContent": false, "webContentsDebuggingEnabled": false },
+  "plugins": { "SystemBars": { "insetsHandling": "css", "initialViewportFitValueHint": "cover" } }
+}

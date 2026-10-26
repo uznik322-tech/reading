@@ -2,6 +2,23 @@
   "name": "reading",
   "private": true,
   "type": "module",
-  "scripts": { "start": "node server.js", "test": "node --test", "setup-bot": "node setup-bot.js" },
-  "engines": { "node": ">=20.12" }
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test",
+    "setup-bot": "node setup-bot.js",
+    "build:web": "node build-web.js",
+    "android:sync": "npm run build:web && cap sync android",
+    "android:build": "powershell -NoProfile -ExecutionPolicy Bypass -File build-android.ps1",
+    "android:verify": "node verify-apk.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/core": "8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3"
+  }
 }

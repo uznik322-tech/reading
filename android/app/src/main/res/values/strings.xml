@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Между строк</string>
+    <string name="title_activity_main">Между строк</string>
+    <string name="package_name">tech.uznik322.reading</string>
+    <string name="custom_url_scheme">tech.uznik322.reading</string>
+</resources>
