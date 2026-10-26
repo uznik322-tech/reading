@@ -18,13 +18,10 @@ const put = book => storage('readwrite', store => store.put(book));
 let books = await storage('readonly', store => store.getAll());
 let current = null;
 let blocks = [];
-let syncing = false;
-let connected = false;
 let restoring = false;
-let conflict = null;
+let telegram_payload = null;
 let toast_timer;
 let save_timer;
-let sync_timer;
 let settings;
 try { settings = JSON.parse(localStorage.getItem('reading-settings')) || {}; } catch { settings = {}; }
 function toast(message) {
@@ -104,8 +101,8 @@ async function import_book(file) {
     const parsed = parse(xml);
     const id = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(xml)))].map(byte => byte.toString(16).padStart(2, '0')).join('');
     if (books.some(book => book.id === id)) return toast('Эта книга уже в библиотеке');
-    const book = { id, xml, title: parsed.title, author: parsed.author, cover: parsed.cover, added: Date.now(), revision: 0, progress: null, dirty: false, uploaded: false };
-    await put(book); books.push(book); render_library(); toast('Книга добавлена. Можно читать без интернета.'); void sync();
+    const book = { id, xml, title: parsed.title, author: parsed.author, cover: parsed.cover, added: Date.now(), progress: null };
+    await put(book); books.push(book); render_library(); toast('Книга добавлена. Можно читать без интернета.');
   } catch (error) { toast(error.message || 'Не удалось добавить книгу'); }
   finally { $('#import-button').disabled = false; $('#file-input').value = ''; }
 }
@@ -192,79 +189,59 @@ function update_meter() {
 }
 async function save_position() {
   if (!current || restoring) return;
-  current.progress = position(); current.dirty = true;
+  current.progress = position();
   try { await put(current); $('#save-status').textContent = 'Место сохранено'; }
   catch { $('#save-status').textContent = 'Ошибка сохранения'; toast('Не удалось сохранить место. Проверь свободное место на устройстве.'); }
 }
-async function api(url, options = {}) {
-  const response = await fetch(url, { ...options, headers: { 'Content-Type': 'application/json' }, cache: 'no-store' });
-  const value = await response.json();
-  if (response.status === 401) { connected = false; throw new Error('Войди для синхронизации'); }
-  if (!response.ok && response.status !== 409) throw new Error(value.error || 'Ошибка синхронизации');
-  return value;
-}
-function set_connection(text) { $('#connection').textContent = text; }
-function show_conflict(local, remote) {
-  conflict = { local, remote };
-  $('#conflict-description').textContent = `Здесь: ${Math.round(local.progress?.percent || 0)}%. На сервере: ${Math.round(remote.progress?.percent || 0)}%.`;
-  if (!$('#conflict-dialog').open) $('#conflict-dialog').showModal();
-}
-async function sync() {
-  if (syncing || conflict || !navigator.onLine) { if (!navigator.onLine) set_connection('Без интернета'); return; }
-  syncing = true;
+async function show_telegram() {
+  // Снимок снимаем до открытия диалога: его фокус не должен менять место отправки.
+  telegram_payload = current ? progress_payload() : null;
+  $('#telegram-dialog').showModal();
+  $('#telegram-send').hidden = !current;
+  $('#telegram-preview').textContent = telegram_payload ? progress_preview(telegram_payload) : 'Открой книгу и нажми Telegram в читалке, чтобы отправить место остановки.';
+  $('#telegram-message').textContent = 'Проверяем подключение…';
   try {
-    set_connection('Синхронизация…');
-    const remote_books = await api('/api/books'); connected = true;
-    // Если сервер восстановлен из пустой копии, повторно отправляем локальные книги.
-    for (const book of books) book.uploaded = Boolean(remote_books[book.id]);
-    for (const remote of Object.values(remote_books)) {
-      const local = books.find(book => book.id === remote.id);
-      if (!local) {
-        const parsed = parse(remote.xml);
-        const book = { ...remote, cover: parsed.cover, added: Date.now(), uploaded: true, dirty: false };
-        await put(book); books.push(book);
-      } else {
-        local.uploaded = true;
-        if (remote.revision !== local.revision) {
-          if (local.dirty || current?.id === local.id) { show_conflict(local, remote); break; }
-          local.progress = remote.progress; local.revision = remote.revision;
-        }
-        await put(local);
-      }
-    }
-    if (!conflict) for (const book of books) {
-      if (!book.uploaded) {
-        const remote = await api('/api/books', { method: 'POST', body: JSON.stringify({ book }) });
-        book.uploaded = true;
-        if (remote.revision !== book.revision && (book.dirty || remote.progress)) { show_conflict(book, remote); break; }
-        book.revision = remote.revision;
-      }
-      if (book.dirty && book.progress) {
-        // Снимок защищает новую локальную позицию от ответа на предыдущий запрос.
-        const sent_progress = book.progress;
-        const result = await api('/api/progress', { method: 'POST', body: JSON.stringify({ id: book.id, revision: book.revision, progress: sent_progress }) });
-        if (result.conflict) { show_conflict(book, result.book); break; }
-        book.revision = result.book.revision;
-        book.dirty = book.progress !== sent_progress;
-      }
-      await put(book);
-    }
-    set_connection(conflict ? 'Выбери место чтения' : 'Синхронизировано');
-    $('#account-message').textContent = 'Подключено. Библиотека синхронизируется автоматически.';
-    if (!current) render_library();
+    const response = await fetch('/api/telegram/status', { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+    if (!response.ok) throw new Error();
+    const status = await response.json();
+    $('#telegram-message').textContent = status.ready ? 'Бот настроен. Отправка доступна при подключении к интернету.' : 'Бот ещё не подключён. Инструкция по настройке — в readme.md проекта.';
+    $('#telegram-send').disabled = !status.ready;
+  } catch {
+    $('#telegram-message').textContent = 'Сервер недоступен. Для отправки нужен интернет и работающий сервер. Место чтения сохранено на устройстве.';
+    $('#telegram-send').disabled = true;
+  }
+}
+function progress_payload() {
+  const progress = position();
+  const active = blocks[progress.block];
+  let chapter = '';
+  for (const heading of document.querySelectorAll('#reader-content h2')) {
+    if (heading.getBoundingClientRect().top <= 120) chapter = heading.textContent;
+  }
+  const excerpt = active?.textContent?.trim() || active?.nextElementSibling?.textContent?.trim() || '';
+  return { title: current.title, author: current.author, percent: Number(progress.percent.toFixed(1)), chapter, excerpt: excerpt.slice(0, 600) };
+}
+function progress_preview(payload) {
+  return [payload.title, payload.author, 'Прочитано: ' + payload.percent + '%', payload.chapter, payload.excerpt ? 'Место в тексте: «' + payload.excerpt + '»' : ''].filter(Boolean).join('\n\n');
+}
+$('#telegram-send').onclick = async () => {
+  if (!telegram_payload) return;
+  const button = $('#telegram-send'); button.disabled = true;
+  $('#telegram-message').textContent = 'Отправляем…';
+  try {
+    await save_position();
+    const response = await fetch('/api/telegram/progress', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(telegram_payload), signal: AbortSignal.timeout(15000)
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Не удалось отправить прогресс');
+    $('#telegram-message').textContent = 'Прогресс отправлен в твой личный чат с ботом.';
+    toast('Прогресс отправлен в Telegram');
   } catch (error) {
-    set_connection(connected ? 'Нет связи с сервером' : 'На устройстве');
-    if (connected) $('#save-status').textContent = 'Сохранено здесь';
-  } finally { syncing = false; }
-}
-async function resolve_conflict(use_remote) {
-  if (!conflict) return;
-  const { local, remote } = conflict;
-  local.revision = remote.revision; local.uploaded = true;
-  if (use_remote) { local.progress = remote.progress; local.dirty = false; if (current?.id === local.id) restore(local.progress); }
-  else local.dirty = Boolean(local.progress);
-  await put(local); conflict = null; $('#conflict-dialog').close(); render_library(); void sync();
-}
+    $('#telegram-message').textContent = error.name === 'TypeError' || error.name === 'TimeoutError' ? 'Нет ответа от сервера. Место сохранено здесь. Проверь чат перед повторной отправкой.' : error.message;
+  } finally { button.disabled = false; }
+};
 function apply_settings() {
   const anchor = current ? position() : null;
   document.body.dataset.theme = settings.theme || 'paper';
@@ -285,28 +262,14 @@ $('#sample-button').onclick = async () => {
   } catch (error) { toast(error.message); }
 };
 $('#search').oninput = render_library;
-$('#account-button').onclick = () => $('#account-dialog').showModal();
+$('#telegram-button').onclick = $('#reader-telegram').onclick = show_telegram;
 $('#settings-button').onclick = () => $('#settings-dialog').showModal();
 $('#contents-button').onclick = () => $('#contents-dialog').showModal();
 document.querySelectorAll('[data-close]').forEach(button => button.onclick = () => button.closest('dialog').close());
-$('#login-form').onsubmit = async event => {
-  event.preventDefault();
-  try {
-    await api('/api/session', { method: 'POST', body: JSON.stringify({ password: $('#password').value }) });
-    $('#password').value = ''; connected = true; await sync(); $('#account-dialog').close(); toast('Синхронизация подключена');
-  } catch (error) { $('#account-message').textContent = error.message; }
-};
-$('#logout-button').onclick = async () => {
-  try { await api('/api/session', { method: 'DELETE' }); connected = false; set_connection('На устройстве'); $('#account-dialog').close(); toast('Выход выполнен. Книги на устройстве сохранены.'); }
-  catch (error) { $('#account-message').textContent = error.message; }
-};
-$('#use-remote').onclick = () => void resolve_conflict(true);
-$('#use-local').onclick = () => void resolve_conflict(false);
-$('#conflict-dialog').addEventListener('cancel', event => event.preventDefault());
 $('#back-button').onclick = async () => {
   clearTimeout(save_timer); await save_position(); current = null;
   $('#reader-view').hidden = true; $('#library-view').hidden = false; document.title = 'Между строк — личная библиотека';
-  window.scrollTo(0, 0); render_library(); void sync();
+  window.scrollTo(0, 0); render_library();
 };
 $('#font-size').oninput = event => { settings.font = Number(event.target.value); apply_settings(); };
 $('#line-height').onchange = event => { settings.height = event.target.value; apply_settings(); };
@@ -315,11 +278,20 @@ $('#seek').oninput = event => { window.scrollTo(0, (document.documentElement.scr
 window.addEventListener('scroll', () => {
   if (!current || restoring) return;
   update_meter(); clearTimeout(save_timer); save_timer = setTimeout(save_position, 250);
-  clearTimeout(sync_timer); sync_timer = setTimeout(sync, 2200);
 }, { passive: true });
-document.addEventListener('visibilitychange', () => { if (document.hidden) { clearTimeout(save_timer); void save_position(); } else void sync(); });
-window.addEventListener('online', () => void sync());
-window.addEventListener('offline', () => set_connection('Без интернета'));
+document.addEventListener('visibilitychange', () => { if (document.hidden) { clearTimeout(save_timer); void save_position(); } });
+window.addEventListener('online', () => $('#connection').textContent = 'На устройстве');
+window.addEventListener('offline', () => $('#connection').textContent = 'Без интернета');
 window.addEventListener('resize', () => { if (current?.progress) restore(current.progress); });
-apply_settings(); render_library(); void sync();
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(registration => registration.update()).catch(() => {});
+apply_settings(); render_library();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js?version=telegram-1', { updateViaCache: 'none' }).then(registration => registration.update()).catch(() => {});
+
+$('#jump-button').onclick = () => { $('#jump-percent').value = position().percent.toFixed(1); $('#jump-dialog').showModal(); };
+$('#jump-form').onsubmit = event => {
+  event.preventDefault();
+  const percent = Number($('#jump-percent').value);
+  if (!current || !Number.isFinite(percent) || percent < 0 || percent > 100) return;
+  $('#jump-dialog').close();
+  window.scrollTo(0, (document.documentElement.scrollHeight - innerHeight) * percent / 100);
+  update_meter(); clearTimeout(save_timer); save_timer = setTimeout(save_position, 100);
+};

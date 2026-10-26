@@ -2,6 +2,6 @@
   "name": "reading",
   "private": true,
   "type": "module",
-  "scripts": { "start": "node server.js", "test": "node --test" },
-  "engines": { "node": ">=20" }
+  "scripts": { "start": "node server.js", "test": "node --test", "setup-bot": "node setup-bot.js" },
+  "engines": { "node": ">=20.12" }
 }
