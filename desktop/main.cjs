@@ -125,6 +125,7 @@ else {
         document.getElementById('jump-percent').value = '37.2';
         document.getElementById('jump-form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
         await new Promise(resolve => setTimeout(resolve, 200));
+        if (!/^\\d+,\\d%$/.test(document.getElementById('reader-percent').textContent)) throw new Error('Не отображаются десятые процента');
         document.getElementById('back-button').click();
         await wait(() => !document.getElementById('library-view').hidden);
         document.getElementById('telegram-button').click();

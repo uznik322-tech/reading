@@ -186,7 +186,7 @@ function position() {
 function update_meter() {
   if (!current) return;
   const percent = position().percent;
-  $('#reader-percent').textContent = `${Math.round(percent)}%`;
+  $('#reader-percent').textContent = `${percent.toFixed(1).replace('.', ',')}%`;
   $('#seek').value = percent;
 }
 async function save_position() {
@@ -290,7 +290,7 @@ window.addEventListener('online', () => $('#connection').textContent = 'На у�
 window.addEventListener('offline', () => $('#connection').textContent = 'Без интернета');
 window.addEventListener('resize', () => { if (current?.progress) restore(current.progress); });
 apply_settings(); render_library();
-if (!is_local && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js?version=desktop-1', { updateViaCache: 'none' }).then(registration => registration.update()).catch(() => {});
+if (!is_local && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js?version=percent-1', { updateViaCache: 'none' }).then(registration => registration.update()).catch(() => {});
 if (is_local) {
   document.body.classList.add(is_desktop ? 'desktop-app' : 'native-app');
   $('#native-config').hidden = false;
