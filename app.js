@@ -274,6 +274,21 @@ $('#telegram-button').onclick = $('#reader-telegram').onclick = show_telegram;
 $('#settings-button').onclick = () => $('#settings-dialog').showModal();
 $('#contents-button').onclick = () => $('#contents-dialog').showModal();
 document.querySelectorAll('[data-close]').forEach(button => button.onclick = () => button.closest('dialog').close());
+document.querySelectorAll('dialog').forEach(dialog => {
+  let started_outside = false;
+  const is_outside = event => {
+    const rect = dialog.getBoundingClientRect();
+    return event.target === dialog && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom);
+  };
+  // Проверяем начало и конец клика, чтобы выделение текста с выходом за окно не закрывало его.
+  dialog.addEventListener('pointerdown', event => { started_outside = is_outside(event); });
+  dialog.addEventListener('click', event => {
+    if (started_outside && is_outside(event)) dialog.close();
+    started_outside = false;
+  });
+  dialog.addEventListener('pointercancel', () => { started_outside = false; });
+  dialog.addEventListener('close', () => { started_outside = false; });
+});
 $('#back-button').onclick = async () => {
   clearTimeout(save_timer); await save_position(); current = null;
   $('#reader-view').hidden = true; $('#library-view').hidden = false; document.title = 'Между строк — личная библиотека';
@@ -292,7 +307,7 @@ window.addEventListener('online', () => $('#connection').textContent = 'На у�
 window.addEventListener('offline', () => $('#connection').textContent = 'Без интернета');
 window.addEventListener('resize', () => { if (current?.progress) restore(current.progress); });
 apply_settings(); render_library();
-if (!is_local && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js?version=resume-2', { updateViaCache: 'none' }).then(registration => registration.update()).catch(() => {});
+if (!is_local && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js?version=dialogs-1', { updateViaCache: 'none' }).then(registration => registration.update()).catch(() => {});
 if (is_local) {
   document.body.classList.add(is_desktop ? 'desktop-app' : 'native-app');
   $('#native-config').hidden = false;
