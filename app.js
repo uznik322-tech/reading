@@ -1,4 +1,4 @@
-import { is_native, telegram_status, send_telegram, start_pairing, finish_pairing, forget_telegram, pick_book, on_native_pause, native_theme } from './platform.js';
+import { is_native, is_desktop, is_local, telegram_status, send_telegram, start_pairing, finish_pairing, forget_telegram, pick_book, on_native_pause, native_theme } from './platform.js';
 
 const $ = selector => document.querySelector(selector);
 const db = await new Promise((resolve, reject) => {
@@ -204,17 +204,17 @@ async function show_telegram() {
   $('#telegram-message').textContent = 'Проверяем подключение…';
   try {
     const status = await telegram_status();
-    $('#telegram-message').textContent = status.ready ? 'Бот настроен. Для отправки нужен интернет.' : is_native ? 'Подключи своего бота ниже. Настройки с компьютера не переносятся автоматически.' : 'Бот ещё не подключён. Инструкция по настройке — в readme.md проекта.';
+    $('#telegram-message').textContent = status.ready ? 'Бот настроен. Для отправки нужен интернет.' : is_local ? 'Подключи своего бота ниже. На каждом устройстве нужна отдельная привязка.' : 'Бот ещё не подключён. Инструкция по настройке — в readme.md проекта.';
     $('#telegram-send').disabled = !status.ready;
-    if (is_native) {
+    if (is_local) {
       $('#native-config').open = !status.ready;
       $('#native-forget').hidden = !status.ready;
       render_pairing(status);
     }
   } catch {
-    $('#telegram-message').textContent = is_native ? 'Не удалось прочитать настройки бота. Отключи его и привяжи заново.' : 'Сервер недоступен. Для отправки нужен интернет и работающий сервер. Место чтения сохранено на устройстве.';
+    $('#telegram-message').textContent = is_local ? 'Не удалось прочитать настройки бота. Отключи его и привяжи заново.' : 'Сервер недоступен. Для отправки нужен интернет и работающий сервер. Место чтения сохранено на устройстве.';
     $('#telegram-send').disabled = true;
-    if (is_native) $('#native-forget').hidden = false;
+    if (is_local) $('#native-forget').hidden = false;
   }
 }
 function progress_payload() {
@@ -255,7 +255,7 @@ function apply_settings() {
   if (anchor) restore(anchor);
 }
 $('#import-button').onclick = $('#empty-import').onclick = async () => {
-  if (!is_native) return $('#file-input').click();
+  if (!is_local) return $('#file-input').click();
   try { await import_book(await pick_book()); }
   catch (error) { if (error.code !== 'cancelled') toast(error.message || 'Не удалось открыть файл'); }
 };
@@ -290,11 +290,11 @@ window.addEventListener('online', () => $('#connection').textContent = 'На у�
 window.addEventListener('offline', () => $('#connection').textContent = 'Без интернета');
 window.addEventListener('resize', () => { if (current?.progress) restore(current.progress); });
 apply_settings(); render_library();
-if (!is_native && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js?version=android-1', { updateViaCache: 'none' }).then(registration => registration.update()).catch(() => {});
-if (is_native) {
-  document.body.classList.add('native-app');
+if (!is_local && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js?version=desktop-1', { updateViaCache: 'none' }).then(registration => registration.update()).catch(() => {});
+if (is_local) {
+  document.body.classList.add(is_desktop ? 'desktop-app' : 'native-app');
   $('#native-config').hidden = false;
-  on_native_pause(() => { clearTimeout(save_timer); void save_position(); }).catch(() => {});
+  on_native_pause(() => { clearTimeout(save_timer); return save_position(); }).catch(() => {});
 }
 
 $('#jump-button').onclick = () => { $('#jump-percent').value = position().percent.toFixed(1); $('#jump-dialog').showModal(); };
@@ -332,7 +332,7 @@ $('#native-check').onclick = async () => {
   $('#native-message').textContent = 'Ищем код…';
   try {
     await finish_pairing();
-    $('#native-message').textContent = 'Бот подключён на этом телефоне.';
+    $('#native-message').textContent = 'Бот подключён на этом устройстве.';
     $('#telegram-message').textContent = 'Бот настроен. Можно отправить прогресс.';
     $('#telegram-send').disabled = false;
     $('#native-forget').hidden = false; $('#native-pairing').hidden = true;
@@ -345,6 +345,6 @@ $('#native-forget').onclick = async () => {
     $('#native-token').value = ''; $('#native-code').textContent = '';
     $('#native-pairing').hidden = true; $('#native-forget').hidden = true;
     $('#telegram-send').disabled = true;
-    $('#native-message').textContent = 'Настройки бота убраны с телефона. Книги и место чтения сохранены.';
+    $('#native-message').textContent = 'Настройки бота убраны с устройства. Книги и место чтения сохранены.';
   } catch (error) { $('#native-message').textContent = error.message; }
 };

@@ -9,16 +9,22 @@
     "build:web": "node build-web.js",
     "android:sync": "npm run build:web && cap sync android",
     "android:build": "powershell -NoProfile -ExecutionPolicy Bypass -File build-android.ps1",
-    "android:verify": "node verify-apk.js"
+    "android:verify": "node verify-apk.js",
+    "windows:build": "node build-desktop.js",
+    "windows:test": "node verify-desktop.js",
+    "windows:verify": "node verify-desktop-package.js"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12"
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",
     "@capacitor/core": "8.5.3"
   },
   "devDependencies": {
-    "@capacitor/cli": "8.5.3"
+    "@capacitor/cli": "8.5.3",
+    "@electron/asar": "4.3.1",
+    "@electron/packager": "20.3.0",
+    "electron": "45.0.0"
   }
 }
