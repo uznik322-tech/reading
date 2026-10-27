@@ -1,4 +1,5 @@
 import { is_native, is_desktop, is_local, telegram_status, send_telegram, start_pairing, finish_pairing, forget_telegram, pick_book, on_native_pause, native_theme } from './platform.js';
+import { read_progress_message, match_progress_books, find_progress_block, format_progress_anchor } from './telegram.js';
 
 const $ = selector => document.querySelector(selector);
 const db = await new Promise((resolve, reject) => {
@@ -164,7 +165,8 @@ async function open_book(book) {
     await Promise.all([...document.querySelectorAll('#reader-content img')].map(img => img.decode().catch(() => {})));
     await document.fonts.ready;
     restore(book.progress); restoring = false; update_meter();
-  } catch (error) { restoring = false; toast(error.message); }
+    return true;
+  } catch (error) { restoring = false; toast(error.message); return false; }
 }
 function restore(progress) {
   restoring = true;
@@ -225,10 +227,10 @@ function progress_payload() {
     if (heading.getBoundingClientRect().top <= 120) chapter = heading.textContent;
   }
   const excerpt = active?.textContent?.trim() || active?.nextElementSibling?.textContent?.trim() || '';
-  return { title: current.title, author: current.author, percent: Number(progress.percent.toFixed(1)), chapter, excerpt: excerpt.slice(0, 600) };
+  return { title: current.title, author: current.author, percent: Number(progress.percent.toFixed(1)), chapter, excerpt: excerpt.slice(0, 600), anchor: { book_id: current.id, block: progress.block, offset: progress.offset } };
 }
 function progress_preview(payload) {
-  return [payload.title, payload.author, 'Прочитано: ' + payload.percent + '%', payload.chapter, payload.excerpt ? 'Место в тексте: «' + payload.excerpt + '»' : ''].filter(Boolean).join('\n\n');
+  return [payload.title, payload.author, 'Прочитано: ' + payload.percent + '%', payload.chapter, payload.excerpt ? 'Место в тексте: «' + payload.excerpt + '»' : '', format_progress_anchor(payload.anchor)].filter(Boolean).join('\n\n');
 }
 $('#telegram-send').onclick = async () => {
   if (!telegram_payload) return;
@@ -290,7 +292,7 @@ window.addEventListener('online', () => $('#connection').textContent = 'На у�
 window.addEventListener('offline', () => $('#connection').textContent = 'Без интернета');
 window.addEventListener('resize', () => { if (current?.progress) restore(current.progress); });
 apply_settings(); render_library();
-if (!is_local && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js?version=percent-1', { updateViaCache: 'none' }).then(registration => registration.update()).catch(() => {});
+if (!is_local && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js?version=resume-2', { updateViaCache: 'none' }).then(registration => registration.update()).catch(() => {});
 if (is_local) {
   document.body.classList.add(is_desktop ? 'desktop-app' : 'native-app');
   $('#native-config').hidden = false;
@@ -347,4 +349,57 @@ $('#native-forget').onclick = async () => {
     $('#telegram-send').disabled = true;
     $('#native-message').textContent = 'Настройки бота убраны с устройства. Книги и место чтения сохранены.';
   } catch (error) { $('#native-message').textContent = error.message; }
+};
+
+function show_resume() {
+  $('#resume-message').value = ''; $('#resume-status').textContent = '';
+  $('#resume-book').hidden = true; $('#resume-book').replaceChildren();
+  $('#resume-dialog').showModal(); $('#resume-message').focus();
+}
+$('#resume-button').onclick = $('#reader-resume').onclick = show_resume;
+$('#resume-message').oninput = () => { $('#resume-book').hidden = true; $('#resume-book').replaceChildren(); $('#resume-status').textContent = ''; };
+$('#resume-form').onsubmit = async event => {
+  event.preventDefault();
+  const button = $('#resume-submit');
+  try {
+    const progress = read_progress_message($('#resume-message').value);
+    const matches = match_progress_books(books, progress);
+    if (!matches.length) throw new Error(`Книга «${progress.title}» не найдена. Сначала добавь её FB2 в библиотеку, затем вставь сообщение снова.`);
+    let book = matches[0];
+    if (matches.length > 1) {
+      book = matches.find(item => item.id === $('#resume-book').value);
+      if (!book) {
+        const placeholder = node('option', 'Выбери нужное издание'); placeholder.value = '';
+        $('#resume-book').replaceChildren(placeholder);
+        for (const item of matches) { const option = node('option', `${item.title} — ${item.author} · ${Math.round(item.progress?.percent || 0)}% прочитано · ${Math.ceil(item.xml.length / 1024)} КБ`); option.value = item.id; $('#resume-book').append(option); }
+        $('#resume-book').hidden = false;
+        $('#resume-status').textContent = 'Найдено несколько изданий. Выбери книгу и нажми «Открыть место».';
+        return;
+      }
+    }
+    parse(book.xml);
+    button.disabled = true;
+    clearTimeout(save_timer); await save_position();
+    $('#resume-dialog').close();
+    if (!await open_book(book)) return;
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    restoring = true; clearTimeout(save_timer);
+    const maximum = Math.max(1, document.documentElement.scrollHeight - innerHeight);
+    let chapter = '';
+    const entries = blocks.map(block => {
+      if (block.matches('h2')) chapter = block.textContent.trim();
+      return { text: block.textContent, chapter, percent: Math.max(0, Math.min(100, (block.getBoundingClientRect().top + scrollY - 80) / maximum * 100)) };
+    });
+    const target = find_progress_block(entries, progress, book.id);
+    if (target) restore({ block: target.index, offset: target.offset });
+    else window.scrollTo(0, maximum * progress.percent / 100);
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    restoring = false; update_meter(); await save_position();
+    if (target) {
+      const element = blocks[target.index]; element.classList.add('resume-highlight');
+      setTimeout(() => element.classList.remove('resume-highlight'), 6000);
+    }
+    toast(target?.method === 'anchor' ? 'Открыто сохранённое место по метке.' : target?.method === 'excerpt' ? 'Место найдено по фрагменту текста.' : target ? 'Фрагмент повторяется. Открыто ближайшее место по главе и проценту.' : 'Фрагмент не найден. Открыто приблизительное место по проценту.');
+  } catch (error) { const message = error.message || 'Не удалось открыть сохранённое место.'; if ($('#resume-dialog').open) $('#resume-status').textContent = message; else toast(message); }
+  finally { button.disabled = false; }
 };

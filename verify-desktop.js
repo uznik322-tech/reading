@@ -14,5 +14,5 @@ const code = await new Promise((resolve, reject) => { child.on('exit', resolve);
 clearTimeout(timeout);
 if (code !== 0) throw new Error('Windows-программа не прошла проверку запуска');
 const result = JSON.parse(await readFile(result_path, 'utf8'));
-if (result.error || !result.bridge || !result.fb2 || !result.indexeddb || !result.secure || !result.sandbox || !result.crypto) throw new Error('Проверка запуска не пройдена');
-console.log('Windows EXE запущен: импорт и чтение FB2, IndexedDB, безопасный контекст, изоляция Node.js и шифрование Windows проверены.');
+if (result.error || !result.bridge || !result.fb2 || !result.indexeddb || !result.secure || !result.sandbox || !result.crypto || !result.resume) throw new Error('Проверка запуска не пройдена');
+console.log('Windows EXE проверен: FB2, вставка сообщения и возврат по метке, IndexedDB, изоляция Node.js и шифрование Windows.');

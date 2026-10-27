@@ -1,4 +1,4 @@
-const cache_name = 'reading-v9';
+const cache_name = 'reading-v11';
 const assets = ['/', '/index.html', '/style.css', '/app.js', '/platform.js', '/telegram.js', '/icon.svg', '/icon-192.png', '/icon-512.png', '/manifest.webmanifest', '/sample.fb2'];
 self.addEventListener('install', event => event.waitUntil(caches.open(cache_name).then(cache => cache.addAll(assets)).then(() => self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));

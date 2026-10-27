@@ -10,7 +10,7 @@ const tools = path.join(root, '.tools/windows-build');
 const stage = path.join(tools, id, 'source');
 const output = path.join(tools, id, 'output');
 const artifacts = path.join(root, 'artifacts/windows');
-const version = '1.0.1';
+const version = '1.0.2';
 await mkdir(path.join(stage, 'desktop'), { recursive: true });
 await mkdir(path.join(stage, 'web'), { recursive: true });
 execFileSync(process.execPath, ['build-web.js'], { cwd: root, stdio: 'inherit' });
