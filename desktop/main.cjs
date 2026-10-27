@@ -120,6 +120,11 @@ else {
         await wait(() => document.querySelector('#books .book'));
         document.querySelector('#books .book').click();
         await wait(() => !document.getElementById('reader-view').hidden);
+        const progress_indicator = document.getElementById('seek');
+        if (progress_indicator.tagName !== 'PROGRESS') throw new Error('Прогресс остаётся ползунком');
+        const scroll_before = window.scrollY;
+        progress_indicator.click();
+        if (window.scrollY !== scroll_before) throw new Error('Клик по индикатору меняет место');
         await new Promise(resolve => setTimeout(resolve, 150));
         if (!document.getElementById('reader-content').textContent.includes('Тихое утро')) throw new Error('Не открыт текст FB2');
         document.getElementById('jump-percent').value = '37.2';

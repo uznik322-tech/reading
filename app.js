@@ -297,7 +297,6 @@ $('#back-button').onclick = async () => {
 $('#font-size').oninput = event => { settings.font = Number(event.target.value); apply_settings(); };
 $('#line-height').onchange = event => { settings.height = event.target.value; apply_settings(); };
 $('#theme').onchange = event => { settings.theme = event.target.value; apply_settings(); };
-$('#seek').oninput = event => { window.scrollTo(0, (document.documentElement.scrollHeight - innerHeight) * Number(event.target.value) / 100); };
 window.addEventListener('scroll', () => {
   if (!current || restoring) return;
   update_meter(); clearTimeout(save_timer); save_timer = setTimeout(save_position, 250);
@@ -307,7 +306,7 @@ window.addEventListener('online', () => $('#connection').textContent = 'На у�
 window.addEventListener('offline', () => $('#connection').textContent = 'Без интернета');
 window.addEventListener('resize', () => { if (current?.progress) restore(current.progress); });
 apply_settings(); render_library();
-if (!is_local && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js?version=dialogs-1', { updateViaCache: 'none' }).then(registration => registration.update()).catch(() => {});
+if (!is_local && 'serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js?version=progress-1', { updateViaCache: 'none' }).then(registration => registration.update()).catch(() => {});
 if (is_local) {
   document.body.classList.add(is_desktop ? 'desktop-app' : 'native-app');
   $('#native-config').hidden = false;

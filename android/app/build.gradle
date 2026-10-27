@@ -7,8 +7,8 @@ android {
         applicationId "tech.uznik322.reading"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 4
-        versionName "1.0.3"
+        versionCode 5
+        versionName "1.0.4"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Исключаем служебные и скрытые файлы из ресурсов приложения.
